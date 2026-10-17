@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EV vs FCEV Explorer</title>
+</head>
+<body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>EV vs FCEV Explorer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Poppins:wght@600;700&display=swap">
+<style>
+  /* Layout: a navy band carries the title, KPIs sit on a warm ground, and a
+     side panel holds the assumptions beside the comparison tabs.
+     Teal marks BEV, amber marks FCEV, and every figure carries a source tag. */
+  :root {
+    color-scheme: light;
+    --bg: #F6F3EC;
+    --surface: #FFFEFA;
+    --surface-2: #F0EBDF;
+    --field: #FFFEFA;
+    --text: #0E1F2D;
+    --text-2: #4A5B6B;
+    --border: #E3DBCB;
+    --border-strong: #BFB39C;
+    --band: #0E2A3F;
+    --band-text: #F3EEE3;
+    --band-text-2: #B9CAD6;
+    --inverse: #0E1F2D;
+    --on-inverse: #FFFEFA;
+    --teal: #12A195;
+    --teal-ink: #0A6B63;
+    --amber: #FFB81C;
+    --best: #8AA3B5;
+    --on-accent: #0E1F2D;
+    --focus: #0B6BCB;
+    --shadow: 0 1px 2px rgba(14, 31, 45, 0.05), 0 6px 20px rgba(14, 31, 45, 0.06);
+    --font-display: "Poppins", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0A1520;
+      --surface: #111F2C;
+      --surface-2: #172A3A;
+      --field: #0D1A26;
+      --text: #F1EBDD;
+      --text-2: #A9B9C6;
+      --border: #22364A;
+      --border-strong: #3A5068;
+      --band: #06111A;
+      --band-text: #F1EBDD;
+      --band-text-2: #A9B9C6;
+      --inverse: #F1EBDD;
+      --on-inverse: #0A1520;
+      --teal: #2BC4B8;
+      --teal-ink: #6FE0D4;
+      --amber: #FFC445;
+      --best: #6F8797;
+      --on-accent: #0A1520;
+      --focus: #6CB4FF;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0A1520;
+    --surface: #111F2C;
+    --surface-2: #172A3A;
+    --field: #0D1A26;
+    --text: #F1EBDD;
+    --text-2: #A9B9C6;
+    --border: #22364A;
+    --border-strong: #3A5068;
+    --band: #06111A;
+    --band-text: #F1EBDD;
+    --band-text-2: #A9B9C6;
+    --inverse: #F1EBDD;
+    --on-inverse: #0A1520;
+    --teal: #2BC4B8;
+    --teal-ink: #6FE0D4;
+    --amber: #FFC445;
+    --best: #6F8797;
+    --on-accent: #0A1520;
+    --focus: #6CB4FF;
+    --shadow: none;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+  p { margin: 0; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  [hidden] { display: none !important; }
+
+  /* Top band and hero */
+  .band { background: var(--band); color: var(--band-text); }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-block: 14px; font-size: 14px; color: var(--band-text-2); }
+  .topbar strong { color: var(--band-text); font-weight: 700; letter-spacing: 0.02em; }
+  .hero { padding-block: 32px 40px; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); margin-bottom: 10px; }
+  .hero h1 { font-size: clamp(28px, 4.2vw, 42px); font-weight: 700; margin-bottom: 14px; }
+  .hero .lede { max-width: 720px; font-size: 18px; color: var(--band-text-2); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 480px) { .kpis { grid-template-columns: minmax(0, 1fr); } }
+  .kpi { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 18px; }
+  .kpi-value { font-family: var(--font-display); font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--band-text); }
+  .kpi-label { margin-top: 6px; font-size: 14px; color: var(--band-text-2); }
+  .kpi .tag { margin-top: 12px; }
+  .kpi.bev .kpi-value { color: var(--teal); }
+  .kpi.fcev .kpi-value { color: var(--amber); }
+
+  /* Provenance tags */
+  .tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1.4; border: 1px solid var(--border-strong); color: var(--text-2); white-space: nowrap; }
+  .tag-deck { color: var(--teal-ink); border-color: var(--teal); }
+  .tag-assume { color: var(--text); border-color: var(--amber); }
+  .tag-proposed { color: var(--text-2); border-style: dashed; }
+  .tag-track { color: var(--text); }
+  .band .tag { color: var(--band-text); border-color: rgba(243, 238, 227, 0.35); }
+  .band .tag-deck { color: var(--teal); border-color: var(--teal); }
+
+  /* Page shell */
+  .shell { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 32px; align-items: start; padding-block: 32px 48px; }
+  @media (max-width: 860px) { .shell { grid-template-columns: minmax(0, 1fr); } }
+
+  .side { position: sticky; top: 24px; }
+  @media (max-width: 860px) { .side { position: static; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); }
+  .side-card { padding: 0; }
+  .side-card > summary { list-style: none; cursor: pointer; padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+  .side-card > summary::-webkit-details-marker { display: none; }
+  .side-card > summary::after { content: "−"; font-size: 22px; color: var(--text-2); }
+  .side-card:not([open]) > summary::after { content: "+"; }
+  .side-body { padding: 0 22px 22px; }
+  .note { font-size: 14px; color: var(--text-2); margin-bottom: 4px; }
+  .field { margin-top: 18px; }
+  .field-label { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .field-value { color: var(--teal-ink); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--teal); margin: 0; }
+  input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--field);
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  input[aria-invalid="true"] { border-color: var(--amber); box-shadow: 0 0 0 2px var(--amber); }
+  .hint { margin-top: 6px; font-size: 13px; color: var(--text-2); }
+  .hint.error { color: var(--text); font-weight: 700; }
+  .btn {
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--inverse);
+    background: transparent;
+    color: var(--text);
+  }
+  .btn:hover { background: var(--inverse); color: var(--on-inverse); }
+  .btn-block { width: 100%; margin-top: 20px; }
+
+  /* Tabs */
+  .tablist { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 24px; }
+  .tab { flex: 1 1 auto; font: inherit; font-weight: 700; font-size: 15px; padding: 10px 14px; border-radius: 10px; border: 0; background: transparent; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--inverse); color: var(--on-inverse); }
+  .panel-section { min-width: 0; }
+  .sec-head { margin-bottom: 8px; }
+  .sec-head h2 { font-size: 26px; font-weight: 700; }
+  .sec-sub { margin-top: 6px; color: var(--text-2); }
+  .src { margin: 12px 0 0; font-size: 14px; color: var(--text-2); }
+
+  .slider-row { margin-top: 22px; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+  @media (max-width: 640px) { .stats { grid-template-columns: minmax(0, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; border-top-width: 5px; }
+  .stat-bev { border-top-color: var(--teal); }
+  .stat-fcev { border-top-color: var(--amber); }
+  .stat-neutral { border-top-color: var(--text); }
+  .stat-label { font-size: 14px; color: var(--text-2); }
+  .stat-value { font-family: var(--font-display); font-size: 30px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* Charts drawn to scale with axis ticks */
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: var(--text-2); margin-bottom: 14px; }
+  .key { display: inline-flex; align-items: center; gap: 8px; }
+  .key i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .chart {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 8px;
+    padding: 28px 18px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+  .yaxis { position: relative; height: 240px; }
+  .ytick { position: absolute; right: 8px; transform: translateY(50%); font-size: 12px; color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .plotwrap { min-width: 0; }
+  .plot { position: relative; height: 240px; }
+  .grid { position: absolute; inset: 0; }
+  .gline { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); transform: translateY(50%); }
+  .bars { position: absolute; inset: 0; display: flex; }
+  .group { flex: 1 1 0; min-width: 0; display: flex; align-items: flex-end; justify-content: center; gap: 12px; padding: 0 8px; }
+  .bar { position: relative; width: min(44%, 96px); min-height: 2px; border-radius: 6px 6px 0 0; }
+  .bar-value { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 6px; font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .bev-fill { background: var(--teal); }
+  .fcev-fill { background: var(--amber); }
+  .best-fill { background: var(--best); }
+  .worst-fill { background: var(--text); }
+  .glabels { display: flex; margin-top: 10px; }
+  .glabel { flex: 1 1 0; text-align: center; font-weight: 700; font-size: 14px; }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin-top: 22px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-weight: 700; font-size: 14px; color: var(--text-2); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th.num { text-align: right; }
+
+  .note-foot { margin-top: 12px; font-size: 14px; color: var(--text-2); }
+
+  .suit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+  @media (max-width: 560px) { .suit-grid { grid-template-columns: minmax(0, 1fr); } }
+  .select-row { margin-top: 22px; }
+  .select-row label { display: block; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  select {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--field);
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
+  }
+  .factor { margin-top: 16px; font-size: 15px; color: var(--text-2); }
+  .factor strong { color: var(--text); }
+
+  /* Roadmap */
+  .rm-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 22px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font: inherit; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--inverse); color: var(--on-inverse); border-color: var(--inverse); }
+  .rm-count { font-size: 14px; color: var(--text-2); }
+  .phase { margin-top: 28px; }
+  .phase-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--text); }
+  .phase-head h3 { font-size: 20px; font-weight: 700; }
+  .phase-range { font-size: 14px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .milestones { list-style: none; margin: 0; padding: 0; }
+  .milestone { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .year { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .mbody h4 { font-size: 18px; font-weight: 700; }
+  .mbody p { margin-top: 6px; color: var(--text-2); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .empty { margin-top: 24px; color: var(--text-2); }
+
+  /* Footer */
+  .foot { background: var(--surface-2); border-top: 1px solid var(--border); padding-block: 28px 36px; }
+  .foot h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .foot ol { margin: 0; padding-left: 20px; color: var(--text-2); font-size: 15px; }
+  .foot li + li { margin-top: 6px; }
+</style>
+
+<div class="band">
+  <div class="wrap topbar">
+    <strong>Seminar prototype</strong>
+    <span>Figures are labelled by source: deck, assumption, or proposed</span>
+  </div>
+</div>
+
+<header class="band">
+  <div class="wrap hero">
+    <p class="eyebrow">Battery electric vs fuel cell</p>
+    <h1>EV vs FCEV Decision Explorer</h1>
+    <p class="lede">Compare BEV and FCEV vehicles on energy, cost, refuelling time, sector suitability and the technology roadmap. Change the assumptions to see how the results move.</p>
+
+    <div class="kpis">
+      <div class="kpi bev">
+        <div class="kpi-value">75%</div>
+        <div class="kpi-label">BEV efficiency, source to wheels</div>
+        <span class="tag tag-deck">Deck · slide 8</span>
+      </div>
+      <div class="kpi fcev">
+        <div class="kpi-value">35%</div>
+        <div class="kpi-label">FCEV efficiency, source to wheels</div>
+        <span class="tag tag-deck">Deck · slide 8</span>
+      </div>
+      <div class="kpi bev">
+        <div class="kpi-value">18–35 min</div>
+        <div class="kpi-label">BEV fast charge per stop</div>
+        <span class="tag tag-deck">Deck · slide 10</span>
+      </div>
+      <div class="kpi fcev">
+        <div class="kpi-value">3–5 min</div>
+        <div class="kpi-label">FCEV full fill per stop</div>
+        <span class="tag tag-deck">Deck · slide 10</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<noscript><p class="wrap" style="padding-block:24px">This page needs JavaScript to run the calculations.</p></noscript>
+
+<main class="wrap shell">
+  <aside class="side">
+    <details class="card side-card" id="assumptions" open>
+      <summary>Assumptions</summary>
+      <div class="side-body">
+        <p class="note">These values are not in the deck. Replace them with sourced figures before presenting.</p>
+
+        <div class="field">
+          <div class="field-label">
+            <label for="wheel">Energy used at the wheels</label>
+            <span class="field-value"><output id="wheelOut" for="wheel">0.18</output> kWh/km</span>
+          </div>
+          <input type="range" id="wheel" min="0.10" max="0.30" step="0.01" value="0.18">
+          <div class="hint"><span class="tag tag-assume">Assumption</span></div>
+        </div>
+
+        <div class="field">
+          <label for="price" class="field-label" style="display:block">Electricity price (₹ per kWh)</label>
+          <input type="number" id="price" min="0" step="0.5" value="8" inputmode="decimal" aria-describedby="priceHint">
+          <div class="hint" id="priceHint"><span class="tag tag-assume">Assumption</span></div>
+          <p class="hint error" id="priceError" role="status" aria-live="polite" hidden></p>
+        </div>
+
+        <button type="button" class="btn btn-block" id="reset">Reset assumptions</button>
+      </div>
+    </details>
+  </aside>
+
+  <section class="main-col" style="min-width:0">
+    <div class="tablist" role="tablist" aria-label="Comparison sections" id="tablist">
+      <button type="button" role="tab" class="tab" id="tab-cost" aria-controls="panel-cost" aria-selected="true" tabindex="0">Efficiency &amp; cost</button>
+      <button type="button" role="tab" class="tab" id="tab-refuel" aria-controls="panel-refuel" aria-selected="false" tabindex="-1">Refuel vs charge</button>
+      <button type="button" role="tab" class="tab" id="tab-sector" aria-controls="panel-sector" aria-selected="false" tabindex="-1">Sector fit</button>
+      <button type="button" role="tab" class="tab" id="tab-roadmap" aria-controls="panel-roadmap" aria-selected="false" tabindex="-1">Roadmap</button>
+    </div>
+
+    <!-- Efficiency & cost -->
+    <section role="tabpanel" id="panel-cost" aria-labelledby="tab-cost" class="panel-section">
+      <div class="sec-head">
+        <h2>Energy and cost per trip</h2>
+        <p class="sec-sub">Energy drawn from the source, and what it costs, for one trip.</p>
+      </div>
+      <p class="src" id="costSrc"></p>
+
+      <div class="slider-row">
+        <div class="field-label">
+          <label for="distance">Trip distance</label>
+          <span class="field-value" id="distanceOut">300 km</span>
+        </div>
+        <input type="range" id="distance" min="10" max="1000" step="10" value="300">
+      </div>
+
+      <div class="stats">
+        <div class="stat stat-bev card">
+          <p class="stat-label">BEV cost per trip</p>
+          <p class="stat-value" id="bevCost">–</p>
+        </div>
+        <div class="stat stat-fcev card">
+          <p class="stat-label">FCEV cost per trip</p>
+          <p class="stat-value" id="fcevCost">–</p>
+        </div>
+        <div class="stat stat-neutral card">
+          <p class="stat-label">FCEV extra cost</p>
+          <p class="stat-value" id="extraCost">–</p>
+        </div>
+      </div>
+
+      <div class="chart" id="costChart" aria-hidden="true"></div>
+      <p class="note-foot">Cost = energy drawn from the source × electricity price. Both technologies use the same price, so the difference shows the efficiency gap only.</p>
+
+      <div class="table-wrap">
+        <table id="costTable" aria-label="Energy and cost per trip by technology"></table>
+      </div>
+    </section>
+
+    <!-- Refuel vs charge -->
+    <section role="tabpanel" id="panel-refuel" aria-labelledby="tab-refuel" class="panel-section" hidden>
+      <div class="sec-head">
+        <h2>Time spent refuelling or charging per day</h2>
+        <p class="sec-sub">Choose how many stops a vehicle makes in a day.</p>
+      </div>
+      <p class="src">Per-stop times: <span class="tag tag-deck">Deck · slide 10</span></p>
+
+      <div class="slider-row">
+        <div class="field-label">
+          <label for="stops">Stops per day</label>
+          <span class="field-value" id="stopsOut">2</span>
+        </div>
+        <input type="range" id="stops" min="1" max="6" step="1" value="2">
+      </div>
+
+      <div class="legend" style="margin-top:22px">
+        <span class="key"><i class="best-fill"></i>Best case</span>
+        <span class="key"><i class="worst-fill"></i>Worst case</span>
+      </div>
+      <div class="chart" id="refuelChart" aria-hidden="true"></div>
+
+      <div class="table-wrap">
+        <table id="refuelTable" aria-label="Minutes per day spent refuelling or charging"></table>
+      </div>
+      <p class="note-foot">BEV: 18–35 min per 800V DC fast charge. FCEV: 3–5 min per full 70 MPa fill. Times cover the stop only, not travel.</p>
+    </section>
+
+    <!-- Sector fit -->
+    <section role="tabpanel" id="panel-sector" aria-labelledby="tab-sector" class="panel-section" hidden>
+      <div class="sec-head">
+        <h2>Which technology suits which vehicle sector</h2>
+        <p class="sec-sub">Pick a sector to see how well each technology fits, and the main reason.</p>
+      </div>
+      <p class="src">Suitability values: <span class="tag tag-deck">Deck · slide 13</span></p>
+
+      <div class="select-row">
+        <label for="sector">Vehicle sector</label>
+        <select id="sector"></select>
+      </div>
+
+      <div class="suit-grid">
+        <div class="stat stat-bev card">
+          <p class="stat-label">BEV suitability</p>
+          <p class="stat-value" style="font-size:24px" id="bevSuit">–</p>
+        </div>
+        <div class="stat stat-fcev card">
+          <p class="stat-label">FCEV suitability</p>
+          <p class="stat-value" style="font-size:24px" id="fcevSuit">–</p>
+        </div>
+      </div>
+      <p class="factor" id="factor"></p>
+
+      <div class="table-wrap">
+        <table id="sectorTable" aria-label="Suitability by vehicle sector"></table>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section role="tabpanel" id="panel-roadmap" aria-labelledby="tab-roadmap" class="panel-section" hidden>
+      <div class="sec-head">
+        <h2>Powertrain technology roadmap, 2026–2035</h2>
+        <p class="sec-sub">Four milestones come from the deck. The others are proposed additions that need a source before you present them.</p>
+      </div>
+
+      <div class="rm-toolbar">
+        <div class="chips" role="group" aria-label="Filter by technology">
+          <button type="button" class="chip" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" class="chip" data-filter="BEV" aria-pressed="false">BEV</button>
+          <button type="button" class="chip" data-filter="FCEV" aria-pressed="false">FCEV</button>
+          <button type="button" class="chip" data-filter="Both" aria-pressed="false">Both</button>
+        </div>
+        <p class="rm-count" id="rmCount"></p>
+      </div>
+
+      <div id="rmPhases"></div>
+    </section>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <h2>Sources to add before presenting</h2>
+    <ol>
+      <li>Well-to-wheel efficiency (deck slide 8): cite a peer-reviewed study or government energy report.</li>
+      <li>Charging and refuelling times (deck slide 10): cite charger and station manufacturer specifications.</li>
+      <li>Suitability percentages (deck slide 13): cite the study behind them, or label them illustrative.</li>
+      <li>Roadmap milestones (deck slide 14): cite a source for each date. Every milestone tagged Proposed needs one too.</li>
+      <li>Assumptions: energy at the wheels (0.18 kWh/km) and electricity price (₹8/kWh) are placeholders.</li>
+    </ol>
+  </div>
+</footer>
+
+<script>
+  // ---------- Data ----------
+  // Deck figures (slide numbers refer to the seminar deck)
+  const DECK = {
+    bevEfficiency: 0.75,   // slide 8
+    fcevEfficiency: 0.35,  // slide 8
+    bevStop: [18, 35],     // slide 10, minutes per 800V DC fast charge
+    fcevStop: [3, 5],      // slide 10, minutes per 70 MPa fill
+  };
+
+  // Assumptions, not from the deck
+  const DEFAULTS = { wheel: 0.18, price: 8 };
+
+  const SECTORS = [
+    { sector: "Urban Passenger Cars", bev: "Optimal (98%)", fcev: "Low", factor: "Home charging & efficiency" },
+    { sector: "Urban Delivery Fleets", bev: "High (85%)", fcev: "Moderate", factor: "Depot charging schedules" },
+    { sector: "Long-Haul Freight Trucks", bev: "Moderate", fcev: "Optimal (90%)", factor: "Refuelling speed & payload limits" },
+    { sector: "Heavy Industrial Machinery", bev: "Low", fcev: "High (80%)", factor: "Continuous heavy uptime" },
+  ];
+
+  const PHASES = [
+    { name: "Near term", range: "2026–2028" },
+    { name: "Mid term", range: "2029–2031" },
+    { name: "Long term", range: "2032–2035" },
+  ];
+
+  // source: "deck" (with slide) or "proposed" (needs a citation)
+  const ROADMAP = [
+    { year: 2026, phase: "Near term", track: "BEV", title: "800V & LFP Scaling", text: "Mass market adoption of high-voltage fast-charging platforms.", source: "deck", slide: 14 },
+    { year: 2027, phase: "Near term", track: "BEV", title: "Highway fast-charging corridors", text: "Fast-charging sites along major highways, so long trips need fewer stops.", source: "proposed" },
+    { year: 2028, phase: "Near term", track: "BEV", title: "Solid-State Cells", text: "Commercial introduction of solid-state battery technology.", source: "deck", slide: 14 },
+    { year: 2029, phase: "Mid term", track: "FCEV", title: "Hydrogen freight corridors", text: "Refuelling stations planned along the main routes that heavy trucks use.", source: "proposed" },
+    { year: 2030, phase: "Mid term", track: "FCEV", title: "Green H₂ Parity", text: "Cost reduction in electrolysis for competitive FCEV freight.", source: "deck", slide: 14 },
+    { year: 2031, phase: "Mid term", track: "BEV", title: "Battery recycling at scale", text: "Recovery of key battery metals from end-of-life packs, reducing demand for new mining.", source: "proposed" },
+    { year: 2032, phase: "Long term", track: "BEV", title: "Second-life battery storage", text: "Retired vehicle packs reused for stationary grid storage.", source: "proposed" },
+    { year: 2033, phase: "Long term", track: "FCEV", title: "Lighter hydrogen storage", text: "Lighter, lower-cost tank and fuel-cell designs for heavy vehicles.", source: "proposed" },
+    { year: 2034, phase: "Long term", track: "Both", title: "Shared depot hubs", text: "Depots that offer both charging and hydrogen refuelling for mixed fleets.", source: "proposed" },
+    { year: 2035, phase: "Long term", track: "Both", title: "Dual Ecosystem", text: "Fully integrated clean mobility network across all transport sectors.", source: "deck", slide: 14 },
+  ];
+
+  const TABS = ["cost", "refuel", "sector", "roadmap"];
+  const state = { rmFilter: "all" };
+
+  // ---------- Calculations (same logic as the Python model) ----------
+  function round(x, digits = 0) {
+    const f = 10 ** digits;
+    return Math.round(x * f) / f;
+  }
+
+  function tripComparison(distanceKm, wheelKwhPerKm, pricePerKwh) {
+    const wheelKwh = distanceKm * wheelKwhPerKm;
+    return [
+      { tech: "BEV", efficiency: DECK.bevEfficiency },
+      { tech: "FCEV", efficiency: DECK.fcevEfficiency },
+    ].map(({ tech, efficiency }) => {
+      const sourceKwh = wheelKwh / efficiency;
+      return { tech, sourceKwh: round(sourceKwh, 1), cost: round(sourceKwh * pricePerKwh, 0) };
+    });
+  }
+
+  function refuelTime(stops) {
+    return [
+      { tech: "BEV", best: stops * DECK.bevStop[0], worst: stops * DECK.bevStop[1] },
+      { tech: "FCEV", best: stops * DECK.fcevStop[0], worst: stops * DECK.fcevStop[1] },
+    ];
+  }
+
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (key === "text") node.textContent = value;
+      else if (key === "style") node.setAttribute("style", value);
+      else node.setAttribute(key, value);
+    }
+    for (const child of children) node.append(child);
+    return node;
+  }
+
+  const fmtINR = (n) => "₹" + Math.round(n).toLocaleString("en-IN");
+  const fmtNum = (n, digits = 1) =>
+    n.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const fmtMin = (n) => `${Math.round(n).toLocaleString("en-IN")} min`;
+
+  // Round a maximum up to a readable axis top: 4 equal steps of 1, 2, 5 or 10 × 10^n.
+  function axisTop(maxValue) {
+    if (!(maxValue > 0)) return 4;
+    const step = maxValue / 4;
+    const exp = Math.floor(Math.log10(step));
+    const f = step / 10 ** exp;
+    const nice = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+    return nice * 10 ** exp * 4;
+  }
+
+  // Assumption inputs. Invalid price shows a message and uses the default until fixed.
+  function readAssumptions() {
+    const wheel = parseFloat($("wheel").value);
+    const raw = $("price").value.trim();
+    const price = raw === "" ? NaN : Number(raw);
+    const priceOk = Number.isFinite(price) && price >= 0;
+
+    const err = $("priceError");
+    const input = $("price");
+    input.setAttribute("aria-invalid", String(!priceOk));
+    err.hidden = priceOk;
+    err.textContent = priceOk ? "" : `Enter a price of ₹0 or more. Results use ₹${DEFAULTS.price.toFixed(2)} until you do.`;
+
+    return {
+      wheel: Number.isFinite(wheel) && wheel >= 0 ? wheel : DEFAULTS.wheel,
+      price: priceOk ? price : DEFAULTS.price,
+    };
+  }
+
+  function fillTable(id, headers, rows, numericCols = []) {
+    const table = $(id);
+    table.replaceChildren(
+      el("thead", {}, el("tr", {}, ...headers.map((h, i) =>
+        el("th", { scope: "col", class: numericCols.includes(i) ? "num" : "", text: h })))),
+      el("tbody", {}, ...rows.map((row) =>
+        el("tr", {}, ...row.map((cell, i) =>
+          el("td", { class: numericCols.includes(i) ? "num" : "", text: String(cell) }))))),
+    );
+  }
+
+  // Chart drawn to scale: groups of bars share one axis with four gridlines.
+  // groups: [{ label, bars: [{ value, text, cls }] }]
+  function drawChart(id, groups, formatTick) {
+    const maxValue = Math.max(0, ...groups.flatMap((g) => g.bars.map((b) => b.value)));
+    const top = axisTop(maxValue);
+    const fractions = [0, 1, 2, 3, 4];
+
+    const yaxis = el("div", { class: "yaxis" }, ...fractions.map((k) =>
+      el("span", { class: "ytick", style: `bottom:${k * 25}%`, text: formatTick(top * k / 4) })));
+
+    const grid = el("div", { class: "grid" }, ...fractions.map((k) =>
+      el("span", { class: "gline", style: `bottom:${k * 25}%` })));
+
+    const bars = el("div", { class: "bars" }, ...groups.map((g) =>
+      el("div", { class: "group" }, ...g.bars.map((b) => {
+        const node = el("div", { class: `bar ${b.cls}` });
+        node.style.height = `${(b.value / top) * 100}%`;
+        node.append(el("span", { class: "bar-value", text: b.text }));
+        return node;
+      }))));
+
+    const labels = el("div", { class: "glabels" }, ...groups.map((g) =>
+      el("div", { class: "glabel", text: g.label })));
+
+    const plot = el("div", { class: "plot" }, grid, bars);
+    $(id).replaceChildren(yaxis, el("div", { class: "plotwrap" }, plot, labels));
+  }
+
+  // ---------- Renderers ----------
+  function renderCost() {
+    const { wheel, price } = readAssumptions();
+    const distance = Number($("distance").value);
+    $("wheelOut").textContent = wheel.toFixed(2);
+    $("distanceOut").textContent = `${distance} km`;
+
+    const trip = tripComparison(distance, wheel, price);
+    const bev = trip.find((r) => r.tech === "BEV");
+    const fcev = trip.find((r) => r.tech === "FCEV");
+
+    $("bevCost").textContent = fmtINR(bev.cost);
+    $("fcevCost").textContent = fmtINR(fcev.cost);
+    $("extraCost").textContent = fmtINR(fcev.cost - bev.cost);
+
+    drawChart("costChart", [
+      { label: "BEV", bars: [{ value: bev.cost, text: fmtINR(bev.cost), cls: "bev-fill" }] },
+      { label: "FCEV", bars: [{ value: fcev.cost, text: fmtINR(fcev.cost), cls: "fcev-fill" }] },
+    ], (v) => fmtINR(v));
+
+    fillTable("costTable",
+      ["Technology", "Energy from source (kWh)", "Cost (₹)"],
+      trip.map((r) => [r.tech, fmtNum(r.sourceKwh, 1), fmtINR(r.cost)]),
+      [1, 2]);
+  }
+
+  function renderRefuel() {
+    const stops = Number($("stops").value);
+    $("stopsOut").textContent = `${stops} ${stops === 1 ? "stop" : "stops"} per day`;
+    const rows = refuelTime(stops);
+
+    drawChart("refuelChart", rows.map((r) => ({
+      label: r.tech,
+      bars: [
+        { value: r.best, text: fmtMin(r.best), cls: "best-fill" },
+        { value: r.worst, text: fmtMin(r.worst), cls: "worst-fill" },
+      ],
+    })), (v) => fmtMin(v));
+
+    fillTable("refuelTable",
+      ["Technology", "Best case (min/day)", "Worst case (min/day)"],
+      rows.map((r) => [r.tech, r.best, r.worst]),
+      [1, 2]);
+  }
+
+  function renderSector() {
+    const row = SECTORS.find((s) => s.sector === $("sector").value) || SECTORS[0];
+    $("bevSuit").textContent = row.bev;
+    $("fcevSuit").textContent = row.fcev;
+    $("factor").replaceChildren(document.createTextNode("Primary factor: "), el("strong", { text: row.factor }));
+
+    fillTable("sectorTable",
+      ["Vehicle sector", "BEV suitability", "FCEV suitability", "Primary factor"],
+      SECTORS.map((s) => [s.sector, s.bev, s.fcev, s.factor]));
+  }
+
+  const TRACK_LABEL = { BEV: "BEV", FCEV: "FCEV", Both: "BEV + FCEV" };
+
+  function milestoneNode(m) {
+    const sourceTag = m.source === "deck"
+      ? el("span", { class: "tag tag-deck", text: `From deck · slide ${m.slide}` })
+      : el("span", { class: "tag tag-proposed", text: "Proposed · needs a source" });
+    return el("li", { class: "milestone" },
+      el("div", { class: "year", text: String(m.year) }),
+      el("div", { class: "mbody" },
+        el("h4", { text: m.title }),
+        el("p", { text: m.text }),
+        el("div", { class: "meta" },
+          el("span", { class: "tag tag-track", text: TRACK_LABEL[m.track] }),
+          sourceTag)));
+  }
+
+  function renderRoadmap() {
+    const f = state.rmFilter;
+    const items = ROADMAP.filter((m) => f === "all" || m.track === f);
+    const deckCount = ROADMAP.filter((m) => m.source === "deck").length;
+    const proposedCount = ROADMAP.length - deckCount;
+    $("rmCount").textContent = `${ROADMAP.length} milestones: ${deckCount} from the deck, ${proposedCount} proposed`;
+
+    const phases = PHASES.map((ph) => {
+      const list = items.filter((m) => m.phase === ph.name);
+      if (!list.length) return null;
+      return el("section", { class: "phase", "aria-label": ph.name },
+        el("div", { class: "phase-head" },
+          el("h3", { text: ph.name }),
+          el("span", { class: "phase-range", text: ph.range })),
+        el("ol", { class: "milestones" }, ...list.map(milestoneNode)));
+    }).filter(Boolean);
+
+    $("rmPhases").replaceChildren(...(phases.length
+      ? phases
+      : [el("p", { class: "empty", text: "No milestones for this filter." })]));
+
+    document.querySelectorAll(".chip").forEach((chip) =>
+      chip.setAttribute("aria-pressed", String(chip.dataset.filter === f)));
+  }
+
+  function renderAll() {
+    renderCost();
+    renderRefuel();
+    renderSector();
+    renderRoadmap();
+  }
+
+  // ---------- Tabs (ARIA pattern with arrow keys) ----------
+  function showTab(name, moveFocus = false) {
+    TABS.forEach((t) => {
+      const btn = $(`tab-${t}`);
+      const on = t === name;
+      btn.setAttribute("aria-selected", String(on));
+      btn.tabIndex = on ? 0 : -1;
+      $(`panel-${t}`).hidden = !on;
+    });
+    if (moveFocus) $(`tab-${name}`).focus();
+  }
+
+  function onTabKey(event) {
+    const current = TABS.findIndex((t) => $(`tab-${t}`) === document.activeElement);
+    if (current < 0) return;
+    let next = null;
+    if (event.key === "ArrowRight") next = (current + 1) % TABS.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + TABS.length) % TABS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = TABS.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    showTab(TABS[next], true);
+  }
+
+  // ---------- Setup ----------
+  function init() {
+    $("costSrc").replaceChildren(
+      document.createTextNode(`BEV delivers ${Math.round(DECK.bevEfficiency * 100)}% of its source energy to the wheels; FCEV delivers ${Math.round(DECK.fcevEfficiency * 100)}%. `),
+      el("span", { class: "tag tag-deck", text: "Deck · slide 8" }));
+
+    const sectorSelect = $("sector");
+    SECTORS.forEach((s) => sectorSelect.append(el("option", { value: s.sector, text: s.sector })));
+
+    TABS.forEach((t) => {
+      $(`tab-${t}`).addEventListener("click", () => showTab(t));
+    });
+    $("tablist").addEventListener("keydown", onTabKey);
+
+    const hashTab = location.hash.slice(1);
+    showTab(TABS.includes(hashTab) ? hashTab : "cost");
+
+    ["wheel", "price", "distance"].forEach((id) => $(id).addEventListener("input", renderCost));
+    $("stops").addEventListener("input", renderRefuel);
+    $("sector").addEventListener("change", renderSector);
+
+    document.querySelectorAll(".chip").forEach((chip) =>
+      chip.addEventListener("click", () => {
+        state.rmFilter = chip.dataset.filter;
+        renderRoadmap();
+      }));
+
+    $("reset").addEventListener("click", () => {
+      $("wheel").value = DEFAULTS.wheel;
+      $("price").value = DEFAULTS.price;
+      renderCost();
+    });
+
+    // Assumptions start open on wide screens and closed on phones
+    const wide = window.matchMedia("(min-width: 861px)");
+    $("assumptions").open = wide.matches;
+
+    renderAll();
+  }
+
+  init();
+</script>
+</body>
+</html>
